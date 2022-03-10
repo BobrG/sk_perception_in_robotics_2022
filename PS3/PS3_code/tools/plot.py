@@ -66,9 +66,7 @@ def plot_robot(state, radius=15.):
     plt.plot(orientation_line[0], orientation_line[1], 'black')
 
 
-
-
-def get_plots_figure(should_show_plots, should_write_movie):
+def get_plots_figure(name, should_show_plots, should_write_movie):
     """
     :param should_show_plots: Indicates whether the animation of SLAM should be plotted, in real time.
     :param should_write_movie: Indicates whether the animation of SLAM should be written to a movie file.
@@ -77,7 +75,7 @@ def get_plots_figure(should_show_plots, should_write_movie):
 
     fig = None
     if should_show_plots or should_write_movie:
-        fig = plt.figure(1)
+        fig = plt.figure(name)
     if should_show_plots:
         plt.ion()
 

@@ -30,6 +30,7 @@ from tools.plot import plot_observations
 from tools.task import get_dummy_context_mgr
 from tools.task import get_movie_writer
 
+from slam.sam import Sam
 
 import mrob
 
@@ -106,6 +107,10 @@ def get_cli_args():
                         action='store',
                         help='The FPS rate of the movie to write.',
                         default=10.)
+    parser.add_argument('--verbose',
+                        type=bool,
+                        help='Print intermediate information for Homework 3',
+                        default=True)
     return parser.parse_args()
 
 def validate_cli_args(args):
@@ -122,11 +127,16 @@ def main():
     alphas = np.array(args.alphas) ** 2
     beta = np.array(args.beta)
     beta[1] = np.deg2rad(beta[1])
-
+    Q = np.diag(beta**2)
 
     mean_prior = np.array([180., 50., 0.])
     Sigma_prior = 1e-12 * np.eye(3, 3)
     initial_state = Gaussian(mean_prior, Sigma_prior)
+
+    if args.filter_name == 'sam':
+        filter_model = Sam(initial_state, alphas, slam_type=args.filter_name,
+                           data_association=args.data_association, update_type=args.update_type, Q=Q,
+                           verbose=args.verbose)
 
     if args.input_data_file:
         data = load_data(args.input_data_file)
@@ -148,9 +158,13 @@ def main():
 
     field_map = FieldMap(args.num_landmarks_per_side)
 
-    fig = get_plots_figure(should_show_plots, should_write_movie)
+    fig = get_plots_figure('traj', should_show_plots, should_write_movie)
+
     movie_writer = get_movie_writer(should_write_movie, 'Simulation SLAM', args.movie_fps, args.plot_pause_len)
     progress_bar = FillingCirclesBar('Simulation Progress', max=data.num_steps)
+    errors = []
+    tt = []
+    start_i = 1
 
     with movie_writer.saving(fig, args.movie_file, data.num_steps) if should_write_movie else get_dummy_context_mgr():
         for t in range(data.num_steps):
@@ -163,8 +177,14 @@ def main():
             z = data.filter.observations[t]
 
             # TODO SLAM predict(u)
-            
+            filter_model.predict(u)
             # TODO SLAM update
+            filter_model.update(z)
+
+            filter_model.solve()
+            
+            #errors.append(filter_model.error())
+            #tt.append(t)
             
             progress_bar.next()
             if not should_update_plots:
@@ -184,6 +204,12 @@ def main():
             plt.plot([data.debug.noise_free_robot_path[t, 0]], [data.debug.noise_free_robot_path[t, 1]], '*g')
 
             # TODO plot SLAM solution
+            estimated_state = filter_model.graph.get_estimated_state()
+            estimated_lndmark = np.array(estimated_state[start_i+1:])
+            start_i = len(estimated_state)
+            estimated_path = np.array([x for x in estimated_state if len(x) == 3]).reshape(-1, 3)
+            plt.plot(estimated_path[:, 0], estimated_path[:, 1], 'blue')
+            #plt.scatter(estimated_lndmark[:, 0], estimated_lndmark[:, 1], c='blue', label='estimated landmarks')
 
             if should_show_plots:
                 # Draw all the plots and pause to create an animation effect.
@@ -196,6 +222,12 @@ def main():
     progress_bar.finish()
 
     plt.show(block=True)
+
+    fig = plt.figure()
+    plt.plot(tt, errors)
+    plt.title('CHI2 Error')
+    plt.grid('on')
+    fig.savefig('./errors.png')
 
 if __name__ == '__main__':
     main()

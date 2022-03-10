@@ -31,7 +31,7 @@ def state_jacobian(x, u):
         dtrans = u[1]
     J_u = np.array([[-dtrans * np.sin(x[2] + u[0]), np.cos(x[2] + u[0]), 0],
                     [dtrans * np.cos(x[2] + u[0]), np.sin(x[2] + u[0]), 0],
-                    [1, 0, 1]])
+                    [1, 0, 1]], dtype=np.float)
 
     return J_x, J_u
 

@@ -42,6 +42,7 @@ class SlamBase(ABC):
         self.state_dim = 3  # The number of state variables: x, y, theta (initially).
         self.obs_dim = 2  # The number of variables per observation: range, bearing.
         self.lm_dim = 2  # The number of variables per landmark: x, y.
+        self.Q = Q
 
     @abstractmethod
     def predict(self, u, dt=None):
