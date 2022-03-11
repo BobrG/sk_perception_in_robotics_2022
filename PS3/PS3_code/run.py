@@ -15,6 +15,7 @@ import os
 from argparse import ArgumentParser
 
 import numpy as np
+from scipy.sparse.linalg import inv
 from matplotlib import pyplot as plt
 from progress.bar import FillingCirclesBar
 
@@ -29,6 +30,7 @@ from tools.plot import plot_field
 from tools.plot import plot_observations
 from tools.task import get_dummy_context_mgr
 from tools.task import get_movie_writer
+from tools.plot import plot2dcov 
 
 from slam.sam import Sam
 
@@ -111,6 +113,17 @@ def get_cli_args():
                         type=bool,
                         help='Print intermediate information for Homework 3',
                         default=True)
+    parser.add_argument('--plot2dcov', 
+                        help='Plot 2d covariance')
+    parser.add_argument('--iterative-solver', 
+                        help='Solve per iteration')
+    parser.add_argument('--no-iterative-solver',
+                        help='Solve offline')  
+    parser.add_argument('--solver', 
+                        choices=['gn', 'lm'],
+                        type=str, 
+                        help='Solver type: GN or Levenberg-Marquard',
+                        default=None)
     return parser.parse_args()
 
 def validate_cli_args(args):
@@ -180,11 +193,12 @@ def main():
             filter_model.predict(u)
             # TODO SLAM update
             filter_model.update(z)
-
-            filter_model.solve()
+            if args.iterative_solver:
+                print(f'Solve per iter {t}')
+                filter_model.solve()
             
-            #errors.append(filter_model.error())
-            #tt.append(t)
+            errors.append(filter_model.error())
+            tt.append(t)
             
             progress_bar.next()
             if not should_update_plots:
@@ -208,6 +222,7 @@ def main():
             estimated_lndmark = np.array(estimated_state[start_i+1:])
             start_i = len(estimated_state)
             estimated_path = np.array([x for x in estimated_state if len(x) == 3]).reshape(-1, 3)
+            last_state = estimated_path[-1]
             plt.plot(estimated_path[:, 0], estimated_path[:, 1], 'blue')
             #plt.scatter(estimated_lndmark[:, 0], estimated_lndmark[:, 1], c='blue', label='estimated landmarks')
 
@@ -229,5 +244,32 @@ def main():
     plt.grid('on')
     fig.savefig('./errors.png')
 
+    plt.spy(filter_model.adj_matrix())
+    plt.savefig('./adjacency_matrix.png')
+    plt.spy(filter_model.inform_matrix())
+    plt.savefig('./information_matrix.png')
+    if args.plot2dcov:
+        plot2dcov(last_state[:-1], inv(filter_model.inform_matrix())[-2:, -2:].toarray(), color='purple', nSigma=3)    
+    
+    if not args.iterative_solver and args.solver == 'lm':
+        print('LM offline solver')
+        filter_model.graph.solve(mrob.LM)
+        
+    if not args.iterative_solver and args.solver == 'gn':
+        print('GN offline solver')
+        filter_model.graph.solve(mrob.GN)
+        error = filter_model.graph.chi2()
+        threshold = 1e-4
+        i = 0
+        while error > threshold:
+            i += 1
+            filter_model.graph.solve()
+            error_next = filter_model.graph.chi2()
+            if (error - error_next) > threshold:
+                error = error_next
+            else:
+                break
+        print(f'Error={error} number of steps = {i}')
+        
 if __name__ == '__main__':
     main()

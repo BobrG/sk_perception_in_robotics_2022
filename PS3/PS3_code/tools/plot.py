@@ -12,7 +12,7 @@ This file contains all utilities for plotting data.
 
 import numpy as np
 from matplotlib import pyplot as plt
-
+from scipy.linalg import cholesky
 
 
 def plot2dcov(mu, Sigma, color, nSigma=1, legend=None):
@@ -43,8 +43,10 @@ def plot2dcov(mu, Sigma, color, nSigma=1, legend=None):
     x_y_old = np.stack((x_old, y_old), 1)
     x_y_new = np.matmul(x_y_old, np.transpose(A)) + mu.reshape(1, 2) # (A*x)T = xT * AT
 
+    fig = plt.figure()
     plt.plot(x_y_new[:, 0], x_y_new[:, 1], color=color, label=legend)
     plt.scatter(mu[0], mu[1], color=color)
+    plt.savefig('./cov_plot.png')
 
 
 def plot_robot(state, radius=15.):
