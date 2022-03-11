@@ -219,12 +219,13 @@ def main():
 
             # TODO plot SLAM solution
             estimated_state = filter_model.graph.get_estimated_state()
-            estimated_lndmark = np.array(estimated_state[start_i+1:])
+            estimated_lndmark = np.array([estimated_state[idx] for idx in filter_model.landmarks_observed.values()])
+
             start_i = len(estimated_state)
             estimated_path = np.array([x for x in estimated_state if len(x) == 3]).reshape(-1, 3)
             last_state = estimated_path[-1]
             plt.plot(estimated_path[:, 0], estimated_path[:, 1], 'blue')
-            #plt.scatter(estimated_lndmark[:, 0], estimated_lndmark[:, 1], c='blue', label='estimated landmarks')
+            plt.scatter(estimated_lndmark[:, 0], estimated_lndmark[:, 1], c='blue', label='estimated landmarks')
 
             if should_show_plots:
                 # Draw all the plots and pause to create an animation effect.
